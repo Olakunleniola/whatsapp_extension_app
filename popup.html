@@ -5,114 +5,129 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WhatsApp Extension</title>
     <style>
-      * {
-        padding: 0;
-        margin: 0;
-        box-sizing: border-box;
-        font-family: Cambria, Cochin, Georgia, Times, "Times New Roman", serif;
-      }
-
-      body {
-        background: rgb(0, 0, 0, 0.5);
+      #warris-body {
+        width: 100vw;
         height: 100vh;
         display: flex;
-        align-items: center;
         justify-content: center;
-        margin: 0;
+        align-items: center;
+        background: #00000075;
       }
 
-      .content {
+      .waris-content {
         background-color: white;
         box-shadow: 0px 8px 24px #00000042;
         border-radius: 10px;
         padding: 20px;
         width: 90%;
         max-width: 400px;
-      }
 
-      h2 {
-        font-size: 25px;
-        font-weight: bold;
-        text-align: center;
-        color: #0ea50e;
-        margin: 0 0 15px;
-        font-weight: bold;
-      }
-
-      select,
-      input[type="file"],
-      button {
-        width: 100%;
-        padding: 10px;
-        font-size: 14px;
-        border-radius: 4px;
-        border: 1px solid #d1d5db;
-        cursor: pointer;
-      }
-
-      label {
-        display: block;
-        font-size: 15px;
-        font-weight: 500;
-        color: #615f5f;
-        margin-bottom: 4px;
-      }
-
-      .opsContainer {
-        margin: 20px 0;
-      }
-
-      select {
-        outline: none;
-        &:focus {
-          box-shadow: 0 0 0 2px #0ea50e;
+        h2 {
+          font-size: 25px;
+          font-weight: bold;
+          text-align: center;
+          color: #0ea50e;
+          margin: 0 0 15px;
+          font-weight: bold;
         }
-      }
 
-      option {
-        padding: 3px;
-      }
+        select,
+        input[type="file"],
+        button {
+          width: 100%;
+          padding: 10px;
+          font-size: 14px;
+          border-radius: 4px;
+          border: 1px solid #d1d5db;
+          cursor: pointer;
+        }
 
-      .fileUpload {
-        margin: 20px 0px;
-      }
-      #headerSelectSection {
-        margin: 10px 0;
-        margin-bottom: 20px;
-        div {
+        label {
+          display: block;
+          font-size: 15px;
+          font-weight: 500;
+          color: #615f5f;
+          margin-bottom: 4px;
+        }
+
+        .opsContainer {
+          margin: 20px 0;
+        }
+
+        select {
+          background-color: white;
+          color: #1f2937;
+          outline: none;
+          &:focus {
+            box-shadow: 0 0 0 2px #0ea50e;
+          }
+        }
+
+        option {
+          padding: 3px;
+        }
+
+        .fileUpload {
+          margin: 20px 0px;
+        }
+        #headerSelectSection {
+          margin: 10px 0;
+          margin-bottom: 20px;
+          div {
+            margin: 10px 0;
+          }
+        }
+
+        button {
+          background-color: #0ea50e;
+          color: white;
+          font-weight: bolder;
+          transition: all ease-in-out 0.1s;
+
+          &:hover {
+            background-color: #0a750a;
+          }
+        }
+
+        .statusContainer {
           margin: 10px 0;
         }
-      }
 
-      button {
-        background-color: #0ea50e;
-        color: white;
-        font-weight: bolder;
-        transition: all ease-in-out 0.1s;
+        .hidden {
+          display: none;
+        }
 
-        &:hover {
-          background-color: #0a750a;
+        #statusLog {
+          height: 80px;
+          overflow-y: auto;
+          background: #e6ece6;
+          border: 1px solid #d1d5db;
+          border-radius: 4px;
+          padding: 8px;
+          font-size: 13px;
+          color: #1f2937;
+        }
+
+        #close-overlay {
+          background: red;
+          color: white;
+          border: none;
+          padding: 5px 10px;
+          border-radius: 3px;
+          cursor: pointer;
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          z-index: 10001;
+          width: 10%;
         }
       }
-
-      .statusContainer {
-        margin: 10px 0;
-      }
-
-      #statusLog {
-      height: 80px;
-      overflow-y: auto;
-      background: #96bd96;
-      border: 1px solid #d1d5db;
-      border-radius: 4px;
-      padding: 8px;
-      font-size: 13px;
-      color: #1f2937;
-    }
     </style>
   </head>
-  <body>
-    <div class="content">
+  <body id="warris-body">
+    <div class="waris-content">
+      <button id="close-overlay">✕ Close</button>
+
       <h2>📩 WhatsApp Bulk Tool</h2>
 
       <!-- Select Operation -->
@@ -140,7 +155,7 @@
       </div>
 
       <!-- Column Headers -->
-      <div id="headerSelectSection">
+      <div id="headerSelectSection" class="hidden">
         <div class="space-y-1">
           <label for="phoneHeaderSelect">Phone Number Column</label>
           <select id="phoneHeaderSelect"></select>
@@ -162,14 +177,11 @@
       <!-- Status Log -->
       <div class="statusContainer">
         <label for="statusLog">Status Log</label>
-        <div
-          id="statusLog"
-          class="bg-gray-50 border border-gray-300 rounded-md h-24 overflow-y-auto p-2 text-sm text-gray-800"
-        ></div>
+        <div id="statusLog"></div>
       </div>
     </div>
 
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-    <script src="popup.js"></script>
+    <script type="text/javascript" src="./libs/xlsx.full.min.js"></script>
+    <script type="text/javascript" src="popup.js"></script>
   </body>
 </html>

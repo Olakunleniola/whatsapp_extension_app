@@ -6,11 +6,29 @@ const operationSelect = document.getElementById("operation");
 const headerSelectSection = document.getElementById("headerSelectSection");
 const phoneHeaderSelect = document.getElementById("phoneHeaderSelect");
 const messageHeaderSelect = document.getElementById("messageHeaderSelect");
+const closeBtn = document.getElementById("close-overlay");
 
 let parsedData = [];
 let headers = [];
 let selectedPhoneHeader = "";
 let selectedMessageHeader = "";
+
+closeBtn?.addEventListener("click", () => {
+  window.parent.postMessage({ type: "CLOSE_IFRAME" }, "*");
+});
+
+console.log("XLSX object:", XLSX);
+
+// Add better XLSX availability check
+function checkXLSXAvailability() {
+  if (typeof XLSX === "undefined") {
+    console.error("❌ XLSX is not available");
+    logStatus("❌ XLSX library not loaded. Please refresh the page.");
+    return false;
+  }
+  console.log("✅ XLSX is available:", XLSX);
+  return true;
+}
 
 function logStatus(message) {
   const p = document.createElement("div");
@@ -21,9 +39,7 @@ function logStatus(message) {
 
 const updateHeaderDropdownVisibility = () => {
   const operation = operationSelect.value;
-  console.log(operation);
   if (operation === "verify") {
-    console.log(messageHeaderSelect);
     messageHeaderSelect.parentElement.classList.add("hidden");
   } else {
     messageHeaderSelect.parentElement.classList.remove("hidden");
@@ -51,35 +67,58 @@ function populateHeaderDropdowns(headers) {
 fileInput.addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
+
+  // Check XLSX availability first
+  if (!checkXLSXAvailability()) {
+    return;
+  }
+
   const reader = new FileReader();
-  reader.onload = function (evt) {
-    const data = evt.target.result;
-    let workbook;
+
+  reader.onload = async function (evt) {
     try {
-      workbook = XLSX.read(data, { type: "binary" });
-    } catch (err) {
-      logStatus("❌ Error reading file.");
-      return;
-    }
-    const firstSheet = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[firstSheet];
-    parsedData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-    if (parsedData.length === 0) {
-      logStatus("❌ No data found in file.");
-      headerSelectSection.classList.add("hidden");
-    } else {
-      headers = Object.keys(parsedData[0]);
-      if (headers.length < 2) {
-        logStatus("❌ File must have at least two columns.");
+      console.log("File loaded, size:", evt.target.result.byteLength);
+      const data = new Uint8Array(evt.target.result); // <— array buffer
+      console.log("Data array length:", data.length);
+
+      const workbook = await XLSX.read(data, { type: "array" }); // <— type: "array"
+      console.log("Workbook created, sheets:", workbook.SheetNames);
+
+      const firstSheet = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[firstSheet];
+      parsedData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      console.log("Parsed data:", parsedData.length, "rows");
+
+      if (parsedData.length === 0) {
+        logStatus("❌ No data found in file.");
         headerSelectSection.classList.add("hidden");
         return;
       }
+
+      headers = Object.keys(parsedData[0]);
+      console.log("Headers found:", headers);
+
+      if (headers.length < 1) {
+        logStatus("❌ File must have at least one column.");
+        headerSelectSection.classList.add("hidden");
+        return;
+      }
+
       populateHeaderDropdowns(headers);
       headerSelectSection.classList.remove("hidden");
       logStatus(`✅ Loaded ${parsedData.length} rows. Select columns below.`);
+    } catch (err) {
+      console.error("File parsing error:", err);
+      logStatus(`❌ Error reading file: ${err.message}`);
     }
   };
-  reader.readAsBinaryString(file);
+
+  reader.onerror = (err) => {
+    console.error("File reader error:", err);
+    logStatus("❌ Failed to read file.");
+  };
+
+  reader.readAsArrayBuffer(file); // <— key change
 });
 
 phoneHeaderSelect.addEventListener("change", (e) => {

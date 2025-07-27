@@ -44,12 +44,51 @@ function isNumberFoundInResults(number) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "START_OPERATION") {
+    console.log("received action ", message.type);
     if (message.operation === "verify") {
       verifyNumbers(message.data, sendResponse);
       return true;
     } else {
       sendResponse({ status: "Bulk messaging not implemented yet." });
     }
+  }
+
+  // Handle iframe toggle
+  if (message.action === "toggle_iframe") {
+    toggleIframe();
+  }
+});
+
+function toggleIframe() {
+  const existingIframe = document.getElementById("whatsapp-bulk-overlay");
+
+  if (existingIframe) {
+    // Close iframe
+    existingIframe.remove();
+  } else {
+    // Open iframe
+    const iframe = document.createElement("iframe");
+    iframe.src = chrome.runtime.getURL("popup.html");
+    iframe.id = "whatsapp-bulk-overlay";
+    iframe.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 9999;
+      border: none;
+    `;
+
+    document.body.appendChild(iframe);
+  }
+}
+
+// Listen for messages from iframe
+window.addEventListener("message", (event) => {
+  if (event.data.type === "CLOSE_IFRAME") {
+    const iframe = document.getElementById("whatsapp-bulk-overlay");
+    if (iframe) iframe.remove();
   }
 });
 
