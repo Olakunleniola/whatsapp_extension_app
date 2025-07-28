@@ -1,3 +1,5 @@
+let isVerificationRunning = false;
+
 async function delay(ms) {
   return new Promise((res) => setTimeout(res, ms));
 }
@@ -59,11 +61,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "START_OPERATION") {
     console.log("received action ", message.type);
     if (message.operation === "verify") {
+      isVerificationRunning = true;
       verifyNumbers(message.data, sendResponse);
       return true;
     } else {
       sendResponse({ status: "Bulk messaging not implemented yet." });
     }
+  }
+
+  if (message.type === "STOP_OPERATION") {
+    isVerificationRunning = false;
+    console.log("Operation stopped by user");
   }
 
   // Handle iframe toggle
@@ -107,8 +115,14 @@ window.addEventListener("message", (event) => {
 
 async function verifyNumbers(data, sendResponse) {
   const results = [];
-  console.log(data)
+
   for (let i = 0; i < data.length; i++) {
+    // Check if operation was stopped
+    if (!isVerificationRunning) {
+      console.log("Verification stopped by user");
+      break;
+    }
+
     const phone = data[i].phone;
     let status = "❌ Not on WhatsApp";
     try {
@@ -132,5 +146,11 @@ async function verifyNumbers(data, sendResponse) {
 
     await delay(1000); // Short delay between verifications
   }
-  sendResponse({ status: "Verification complete", results });
+
+  // Send final status
+  if (isVerificationRunning) {
+    sendResponse({ status: "Verification complete", results });
+  } else {
+    sendResponse({ status: "Verification stopped by user", results });
+  }
 }

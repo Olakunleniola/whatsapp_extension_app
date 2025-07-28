@@ -12,6 +12,7 @@ let parsedData = [];
 let headers = [];
 let selectedPhoneHeader = "";
 let selectedMessageHeader = "";
+let isOperationRunning = false;
 
 closeBtn?.addEventListener("click", () => {
   window.parent.postMessage({ type: "CLOSE_IFRAME" }, "*");
@@ -22,6 +23,27 @@ function logStatus(message) {
   p.textContent = message;
   statusLog.appendChild(p);
   statusLog.scrollTop = statusLog.scrollHeight;
+}
+
+function resetUI() {
+  // Clear file input
+  fileInput.value = "";
+
+  // Clear parsed data
+  parsedData = [];
+  headers = [];
+  selectedPhoneHeader = "";
+  selectedMessageHeader = "";
+
+  // Hide header selectors
+  headerSelectSection.classList.add("hidden");
+
+  // Clear status log
+  statusLog.innerHTML = "";
+
+  // Reset button text
+  startBtn.textContent = "🚀 Start Operation";
+  isOperationRunning = false;
 }
 
 const updateHeaderDropdownVisibility = () => {
@@ -104,7 +126,35 @@ messageHeaderSelect.addEventListener("change", (e) => {
   selectedMessageHeader = e.target.value;
 });
 
-startBtn.addEventListener("click", () => {
+startBtn.addEventListener("click", (e) => {
+  if (isOperationRunning) {
+    // Stop operation
+    isOperationRunning = false;
+    startBtn.textContent = "🔄 Reset Operation";
+    e.target.style.backgroundColor="#3535c5"
+    logStatus("⏹️ Operation stopped by user.");
+
+    // Send stop message to content script
+    chrome.tabs.query(
+      { url: "*://web.whatsapp.com/*", active: true, currentWindow: true },
+      (tabs) => {
+        if (tabs.length) {
+          chrome.tabs.sendMessage(tabs[0].id, { type: "STOP_OPERATION" });
+        }
+      }
+    );
+    return;
+  }
+
+  if (startBtn.textContent === "🔄 Reset Operation") {
+    // Reset operation
+    e.target.style.backgroundColor="#0ea50e"
+    resetUI();
+    return;
+  }
+
+  // Start operation
+  e.target.style.backgroundColor="#e43e3e"
   if (!parsedData.length) {
     logStatus("❌ Please upload a file first.");
     return;
@@ -120,6 +170,11 @@ startBtn.addEventListener("click", () => {
     logStatus("❌ Please select the message column.");
     return;
   }
+
+  // Change button to stop mode
+  isOperationRunning = true;
+  startBtn.textContent = "❌ Stop Operation";
+
   logStatus(
     `🚀 Starting: ${
       operation === "bulk" ? "Bulk Messaging" : "Number Verification"
@@ -142,6 +197,8 @@ startBtn.addEventListener("click", () => {
     (tabs) => {
       if (!tabs.length) {
         logStatus("❌ WhatsApp Web tab not found or not active.");
+        isOperationRunning = false;
+        startBtn.textContent = "🚀 Start Operation";
         return;
       }
       chrome.tabs.sendMessage(
@@ -150,6 +207,8 @@ startBtn.addEventListener("click", () => {
         (response) => {
           if (chrome.runtime.lastError) {
             logStatus("❌ Could not communicate with WhatsApp Web.");
+            isOperationRunning = false;
+            startBtn.textContent = "🚀 Start Operation";
           } else if (response && response.status) {
             logStatus(`ℹ️ ${response.status}`);
           }
