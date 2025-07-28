@@ -21,8 +21,21 @@ async function enterNumberInSearchBox(number) {
   if (searchBox) {
     // Clear previous content
     searchBox.focus();
+    searchBox.textContent = "";
+
+    // 3. Clear any existing content
     document.execCommand("selectAll", false, null);
     document.execCommand("delete", false, null);
+
+    // 4. Insert your number via execCommand
+
+    document.execCommand("insertText", false, number);
+
+    // 5. Dispatch a real input event (in case WhatsApp needs it)
+    searchBox.dispatchEvent(new Event("input", { bubbles: true }));
+
+    console.log(`✅ Pasted “${number}” into WhatsApp search box.`);
+
     // Paste/type the number
     searchBox.textContent = number;
     // Trigger input event
@@ -94,6 +107,7 @@ window.addEventListener("message", (event) => {
 
 async function verifyNumbers(data, sendResponse) {
   const results = [];
+  console.log(data)
   for (let i = 0; i < data.length; i++) {
     const phone = data[i].phone;
     let status = "❌ Not on WhatsApp";
@@ -109,6 +123,13 @@ async function verifyNumbers(data, sendResponse) {
       status = "❌ Error";
     }
     results.push({ phone, status });
+    // ✅ Send progress update to popup
+    chrome.runtime.sendMessage({
+      type: "STATUS_UPDATE",
+      phone,
+      status,
+    });
+
     await delay(1000); // Short delay between verifications
   }
   sendResponse({ status: "Verification complete", results });

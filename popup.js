@@ -183,3 +183,9 @@ startBtn.addEventListener("click", () => {
     }
   );
 });
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "STATUS_UPDATE") {
+    logStatus(`${message.phone}: ${message.status}`);
+  }
+});
