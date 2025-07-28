@@ -17,19 +17,6 @@ closeBtn?.addEventListener("click", () => {
   window.parent.postMessage({ type: "CLOSE_IFRAME" }, "*");
 });
 
-console.log("XLSX object:", XLSX);
-
-// Add better XLSX availability check
-function checkXLSXAvailability() {
-  if (typeof XLSX === "undefined") {
-    console.error("❌ XLSX is not available");
-    logStatus("❌ XLSX library not loaded. Please refresh the page.");
-    return false;
-  }
-  console.log("✅ XLSX is available:", XLSX);
-  return true;
-}
-
 function logStatus(message) {
   const p = document.createElement("div");
   p.textContent = message;
@@ -68,26 +55,16 @@ fileInput.addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  // Check XLSX availability first
-  if (!checkXLSXAvailability()) {
-    return;
-  }
-
   const reader = new FileReader();
 
   reader.onload = async function (evt) {
     try {
-      console.log("File loaded, size:", evt.target.result.byteLength);
-      const data = new Uint8Array(evt.target.result); // <— array buffer
-      console.log("Data array length:", data.length);
-
-      const workbook = await XLSX.read(data, { type: "array" }); // <— type: "array"
-      console.log("Workbook created, sheets:", workbook.SheetNames);
+      const data = new Uint8Array(evt.target.result);
+      const workbook = await XLSX.read(data, { type: "array" });
 
       const firstSheet = workbook.SheetNames[0];
       const sheet = workbook.Sheets[firstSheet];
       parsedData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-      console.log("Parsed data:", parsedData.length, "rows");
 
       if (parsedData.length === 0) {
         logStatus("❌ No data found in file.");
@@ -96,7 +73,6 @@ fileInput.addEventListener("change", (e) => {
       }
 
       headers = Object.keys(parsedData[0]);
-      console.log("Headers found:", headers);
 
       if (headers.length < 1) {
         logStatus("❌ File must have at least one column.");
@@ -114,7 +90,6 @@ fileInput.addEventListener("change", (e) => {
   };
 
   reader.onerror = (err) => {
-    console.error("File reader error:", err);
     logStatus("❌ Failed to read file.");
   };
 
