@@ -56,22 +56,34 @@ function generateExcelFiles() {
     return;
   }
 
-  // Separate verified and unverified numbers
-  const verifiedNumbers = operationResults.filter(
-    (result) => result.status === "✅ Found on WhatsApp"
-  );
-  const unverifiedNumbers = operationResults.filter(
-    (result) => result.status !== "✅ Found on WhatsApp"
-  );
+  // Create a map from phone to status
+  const statusMap = {};
+  for (const result of operationResults) {
+    statusMap[result.phone] = result.status;
+  }
 
-  console.log("Verified numbers:", verifiedNumbers);
-  console.log("Unverified numbers:", unverifiedNumbers);
+  // Add Status column to each original row
+  const dataWithStatus = parsedData.map((row) => {
+    const phone = row[selectedPhoneHeader];
+    return {
+      ...row,
+      Status: statusMap[phone] || "❌ Not on WhatsApp",
+    };
+  });
+
+  // Separate verified and unverified numbers (with all original columns)
+  const verifiedRows = dataWithStatus.filter(
+    (row) => row.Status === "✅ Found on WhatsApp"
+  );
+  const unverifiedRows = dataWithStatus.filter(
+    (row) => row.Status !== "✅ Found on WhatsApp"
+  );
 
   // Create workbook for verified numbers
-  if (verifiedNumbers.length > 0) {
+  if (verifiedRows.length > 0) {
     try {
       const verifiedWorkbook = XLSX.utils.book_new();
-      const verifiedWorksheet = XLSX.utils.json_to_sheet(verifiedNumbers);
+      const verifiedWorksheet = XLSX.utils.json_to_sheet(verifiedRows);
       XLSX.utils.book_append_sheet(
         verifiedWorkbook,
         verifiedWorksheet,
@@ -99,7 +111,7 @@ function generateExcelFiles() {
       verifiedLink.download = `verified_numbers_${new Date()
         .toISOString()
         .slice(0, 10)}.xlsx`;
-      verifiedLink.textContent = `📥 Download Verified Numbers (${verifiedNumbers.length})`;
+      verifiedLink.textContent = `📥 Download Verified Numbers (${verifiedRows.length})`;
       verifiedLink.style.cssText = `
         display: block;
         margin: 10px 0;
@@ -120,10 +132,10 @@ function generateExcelFiles() {
   }
 
   // Create workbook for unverified numbers
-  if (unverifiedNumbers.length > 0) {
+  if (unverifiedRows.length > 0) {
     try {
       const unverifiedWorkbook = XLSX.utils.book_new();
-      const unverifiedWorksheet = XLSX.utils.json_to_sheet(unverifiedNumbers);
+      const unverifiedWorksheet = XLSX.utils.json_to_sheet(unverifiedRows);
       XLSX.utils.book_append_sheet(
         unverifiedWorkbook,
         unverifiedWorksheet,
@@ -151,7 +163,7 @@ function generateExcelFiles() {
       unverifiedLink.download = `unverified_numbers_${new Date()
         .toISOString()
         .slice(0, 10)}.xlsx`;
-      unverifiedLink.textContent = `📥 Download Unverified Numbers (${unverifiedNumbers.length})`;
+      unverifiedLink.textContent = `📥 Download Unverified Numbers (${unverifiedRows.length})`;
       unverifiedLink.style.cssText = `
         display: block;
         margin: 10px 0;
@@ -172,7 +184,7 @@ function generateExcelFiles() {
   }
 
   logStatus(
-    `✅ Generated ${verifiedNumbers.length} verified and ${unverifiedNumbers.length} unverified results.`
+    `✅ Generated ${verifiedRows.length} verified and ${unverifiedRows.length} unverified results.`
   );
 }
 
