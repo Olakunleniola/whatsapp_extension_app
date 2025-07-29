@@ -126,6 +126,24 @@ async function verifyNumbers(data, sendResponse) {
 
     const phone = data[i].phone;
     let status = "❌ Not on WhatsApp";
+
+    // Validate phone number format: must start with +234 and be at least 11 digits after +234
+    if (
+      !phone ||
+      typeof phone !== "string" ||
+      !/^\+234\d{7,}$/.test(phone.trim())
+    ) {
+      // Invalid or missing number
+      results.push({ phone, status });
+      chrome.runtime.sendMessage({
+        type: "STATUS_UPDATE",
+        phone,
+        status,
+      });
+      await delay(500); // Shorter delay for invalid numbers
+      continue;
+    }
+
     try {
       await clickNewChatButton();
       await delay(500);
