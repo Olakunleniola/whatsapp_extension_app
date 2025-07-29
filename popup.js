@@ -13,6 +13,7 @@ let headers = [];
 let selectedPhoneHeader = "";
 let selectedMessageHeader = "";
 let isOperationRunning = false;
+let operationResults = [];
 
 closeBtn?.addEventListener("click", () => {
   window.parent.postMessage({ type: "CLOSE_IFRAME" }, "*");
@@ -34,6 +35,7 @@ function resetUI() {
   headers = [];
   selectedPhoneHeader = "";
   selectedMessageHeader = "";
+  operationResults = [];
 
   // Hide header selectors
   headerSelectSection.classList.add("hidden");
@@ -44,6 +46,134 @@ function resetUI() {
   // Reset button text
   startBtn.textContent = "🚀 Start Operation";
   isOperationRunning = false;
+}
+
+function generateExcelFiles() {
+  console.log("generateExcelFiles called, operationResults:", operationResults);
+
+  if (operationResults.length === 0) {
+    logStatus("❌ No results to export.");
+    return;
+  }
+
+  // Separate verified and unverified numbers
+  const verifiedNumbers = operationResults.filter(
+    (result) => result.status === "✅ Found on WhatsApp"
+  );
+  const unverifiedNumbers = operationResults.filter(
+    (result) => result.status !== "✅ Found on WhatsApp"
+  );
+
+  console.log("Verified numbers:", verifiedNumbers);
+  console.log("Unverified numbers:", unverifiedNumbers);
+
+  // Create workbook for verified numbers
+  if (verifiedNumbers.length > 0) {
+    try {
+      const verifiedWorkbook = XLSX.utils.book_new();
+      const verifiedWorksheet = XLSX.utils.json_to_sheet(verifiedNumbers);
+      XLSX.utils.book_append_sheet(
+        verifiedWorkbook,
+        verifiedWorksheet,
+        "Verified Numbers"
+      );
+
+      // Generate verified numbers file using base64
+      const verifiedBase64 = XLSX.write(verifiedWorkbook, {
+        bookType: "xlsx",
+        type: "base64",
+      });
+
+      // Convert base64 to blob
+      const verifiedBlob = new Blob(
+        [Uint8Array.from(atob(verifiedBase64), (c) => c.charCodeAt(0))],
+        {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }
+      );
+      const verifiedUrl = URL.createObjectURL(verifiedBlob);
+
+      // Create download link for verified numbers
+      const verifiedLink = document.createElement("a");
+      verifiedLink.href = verifiedUrl;
+      verifiedLink.download = `verified_numbers_${new Date()
+        .toISOString()
+        .slice(0, 10)}.xlsx`;
+      verifiedLink.textContent = `📥 Download Verified Numbers (${verifiedNumbers.length})`;
+      verifiedLink.style.cssText = `
+        display: block;
+        margin: 10px 0;
+        padding: 10px;
+        background: #10b981;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        text-align: center;
+        font-weight: 500;
+      `;
+      statusLog.appendChild(verifiedLink);
+      console.log("Verified link created");
+    } catch (error) {
+      console.error("Error creating verified file:", error);
+      logStatus("❌ Error creating verified numbers file");
+    }
+  }
+
+  // Create workbook for unverified numbers
+  if (unverifiedNumbers.length > 0) {
+    try {
+      const unverifiedWorkbook = XLSX.utils.book_new();
+      const unverifiedWorksheet = XLSX.utils.json_to_sheet(unverifiedNumbers);
+      XLSX.utils.book_append_sheet(
+        unverifiedWorkbook,
+        unverifiedWorksheet,
+        "Unverified Numbers"
+      );
+
+      // Generate unverified numbers file using base64
+      const unverifiedBase64 = XLSX.write(unverifiedWorkbook, {
+        bookType: "xlsx",
+        type: "base64",
+      });
+
+      // Convert base64 to blob
+      const unverifiedBlob = new Blob(
+        [Uint8Array.from(atob(unverifiedBase64), (c) => c.charCodeAt(0))],
+        {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }
+      );
+      const unverifiedUrl = URL.createObjectURL(unverifiedBlob);
+
+      // Create download link for unverified numbers
+      const unverifiedLink = document.createElement("a");
+      unverifiedLink.href = unverifiedUrl;
+      unverifiedLink.download = `unverified_numbers_${new Date()
+        .toISOString()
+        .slice(0, 10)}.xlsx`;
+      unverifiedLink.textContent = `📥 Download Unverified Numbers (${unverifiedNumbers.length})`;
+      unverifiedLink.style.cssText = `
+        display: block;
+        margin: 10px 0;
+        padding: 10px;
+        background: #ef4444;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        text-align: center;
+        font-weight: 500;
+      `;
+      statusLog.appendChild(unverifiedLink);
+      console.log("Unverified link created");
+    } catch (error) {
+      console.error("Error creating unverified file:", error);
+      logStatus("❌ Error creating unverified numbers file");
+    }
+  }
+
+  logStatus(
+    `✅ Generated ${verifiedNumbers.length} verified and ${unverifiedNumbers.length} unverified results.`
+  );
 }
 
 const updateHeaderDropdownVisibility = () => {
@@ -131,7 +261,7 @@ startBtn.addEventListener("click", (e) => {
     // Stop operation
     isOperationRunning = false;
     startBtn.textContent = "🔄 Reset Operation";
-    e.target.style.backgroundColor="#3535c5"
+    e.target.style.backgroundColor = "#3535c5";
     logStatus("⏹️ Operation stopped by user.");
 
     // Send stop message to content script
@@ -148,13 +278,13 @@ startBtn.addEventListener("click", (e) => {
 
   if (startBtn.textContent === "🔄 Reset Operation") {
     // Reset operation
-    e.target.style.backgroundColor="#0ea50e"
+    e.target.style.backgroundColor = "#0ea50e";
     resetUI();
     return;
   }
 
   // Start operation
-  e.target.style.backgroundColor="#e43e3e"
+  e.target.style.backgroundColor = "#e43e3e";
   if (!parsedData.length) {
     logStatus("❌ Please upload a file first.");
     return;
@@ -219,7 +349,33 @@ startBtn.addEventListener("click", (e) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log("Received message:", message);
+
   if (message.type === "STATUS_UPDATE") {
     logStatus(`${message.phone}: ${message.status}`);
+    // Store result for Excel generation
+    operationResults.push({
+      phone: message.phone,
+      status: message.status,
+    });
+    console.log("Added result, total results:", operationResults.length);
+  }
+
+  if (message.type === "OPERATION_COMPLETE") {
+    console.log("Operation complete, results:", operationResults);
+    isOperationRunning = false;
+    startBtn.textContent = "🔄 Reset Operation";
+    logStatus("✅ Operation completed! Generating Excel files...");
+    generateExcelFiles();
+  }
+
+  if (message.type === "OPERATION_STOPPED") {
+    console.log("Operation stopped, results:", operationResults);
+    isOperationRunning = false;
+    startBtn.textContent = "🔄 Reset Operation";
+    logStatus(
+      "⏹️ Operation stopped. Generating Excel files for completed results..."
+    );
+    generateExcelFiles();
   }
 });

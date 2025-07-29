@@ -72,6 +72,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "STOP_OPERATION") {
     isVerificationRunning = false;
     console.log("Operation stopped by user");
+    chrome.runtime.sendMessage({ type: "OPERATION_STOPPED" });
   }
 
   // Handle iframe toggle
@@ -150,7 +151,9 @@ async function verifyNumbers(data, sendResponse) {
   // Send final status
   if (isVerificationRunning) {
     sendResponse({ status: "Verification complete", results });
+    chrome.runtime.sendMessage({ type: "OPERATION_COMPLETE" });
   } else {
     sendResponse({ status: "Verification stopped by user", results });
+    chrome.runtime.sendMessage({ type: "OPERATION_STOPPED" });
   }
 }
