@@ -56,27 +56,38 @@ function generateExcelFiles() {
     return;
   }
 
-  // Create a map from phone to status
+  // Create a map from phone to status and message
   const statusMap = {};
+  const messageMap = {};
   for (const result of operationResults) {
     statusMap[result.phone] = result.status;
+    if (result.message) {
+      messageMap[result.phone] = result.message;
+    }
   }
 
   // Add Status column to each original row
   const dataWithStatus = parsedData.map((row) => {
     const phone = row[selectedPhoneHeader];
-    return {
+    const baseRow = {
       ...row,
       Status: statusMap[phone] || "❌ Not on WhatsApp",
     };
+
+    // For bulk messaging, add the message column if it exists
+    if (operationSelect.value === "bulk" && messageMap[phone]) {
+      baseRow.Message = messageMap[phone];
+    }
+
+    return baseRow;
   });
 
   // Separate verified and unverified numbers (with all original columns)
   const verifiedRows = dataWithStatus.filter(
-    (row) => row.Status === "✅ Found on WhatsApp"
+    (row) => row.Status === "✅ Found on WhatsApp" || row.Status === "✅ Sent"
   );
   const unverifiedRows = dataWithStatus.filter(
-    (row) => row.Status !== "✅ Found on WhatsApp"
+    (row) => row.Status !== "✅ Found on WhatsApp" && row.Status !== "✅ Sent"
   );
 
   // Create workbook for verified numbers
@@ -366,10 +377,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "STATUS_UPDATE") {
     logStatus(`${message.phone}: ${message.status}`);
     // Store result for Excel generation
-    operationResults.push({
+    const result = {
       phone: message.phone,
       status: message.status,
-    });
+    };
+
+    // For bulk messaging, include the message
+    if (message.message) {
+      result.message = message.message;
+    }
+
+    operationResults.push(result);
     console.log("Added result, total results:", operationResults.length);
   }
 

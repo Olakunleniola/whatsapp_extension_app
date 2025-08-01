@@ -64,8 +64,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       isVerificationRunning = true;
       verifyNumbers(message.data, sendResponse);
       return true;
+    } else if (message.operation === "bulk") {
+      isVerificationRunning = true;
+      sendBulkMessages(message.data, sendResponse);
+      return true;
     } else {
-      sendResponse({ status: "Bulk messaging not implemented yet." });
+      sendResponse({ status: "Unknown operation." });
     }
   }
 
@@ -172,6 +176,118 @@ async function verifyNumbers(data, sendResponse) {
     chrome.runtime.sendMessage({ type: "OPERATION_COMPLETE" });
   } else {
     sendResponse({ status: "Verification stopped by user", results });
+    chrome.runtime.sendMessage({ type: "OPERATION_STOPPED" });
+  }
+}
+
+async function sendBulkMessages(data, sendResponse) {
+  const results = [];
+
+  for (let i = 0; i < data.length; i++) {
+    // Check if operation was stopped
+    if (!isVerificationRunning) {
+      console.log("Bulk messaging stopped by user");
+      break;
+    }
+
+    const phone = data[i].phone;
+    const message = data[i].message;
+    let status = "❌ Not on WhatsApp";
+
+    // Validate phone number and message
+    if (
+      !phone ||
+      typeof phone !== "string" ||
+      !message ||
+      typeof message !== "string" ||
+      !message.trim()
+    ) {
+      // Invalid or missing number/message
+      results.push({ phone, message, status });
+      chrome.runtime.sendMessage({
+        type: "STATUS_UPDATE",
+        phone,
+        status,
+      });
+      await delay(500);
+      continue;
+    }
+
+    try {
+      await clickNewChatButton();
+      await delay(500);
+      await enterNumberInSearchBox(phone);
+      await delay(1200);
+
+      // Find and click the result div to open chat
+      const resultDiv = Array.from(
+        document.querySelectorAll("span[title]")
+      ).find((el) => {
+        const elText = el.textContent.replace(/\D/g, "");
+        const phoneText = phone.replace(/\D/g, "");
+        return elText.includes(phoneText);
+      });
+
+      if (resultDiv) {
+        // Click the parent button to open chat
+        let button = resultDiv.closest('div[role="listitem"]');
+        if (!button) {
+          button = resultDiv.closest('div[role="button"]');
+        }
+        if (!button) {
+          button = resultDiv.parentElement;
+        }
+
+        if (button) {
+          button.click();
+          await delay(3000);
+
+          // Find the message input box
+          const inputBox = document.querySelector(
+            'div[aria-label="Type a message"]'
+          );
+          if (inputBox) {
+            inputBox.focus();
+            inputBox.textContent = message;
+            inputBox.dispatchEvent(new InputEvent("input", { bubbles: true }));
+            await delay(1000);
+
+            // Find and click the send button
+            const sendBtn = document.querySelector('button[aria-label="Send"]');
+            if (sendBtn) {
+              sendBtn.click();
+              status = "✅ Sent";
+            } else {
+              status = "❌ Send button not found";
+            }
+          } else {
+            status = "❌ Message input not found";
+          }
+        } else {
+          status = "❌ Could not open chat";
+        }
+      } else {
+        status = "❌ Not on WhatsApp";
+      }
+    } catch (e) {
+      status = "❌ Error";
+    }
+
+    results.push({ phone, message, status });
+    chrome.runtime.sendMessage({
+      type: "STATUS_UPDATE",
+      phone,
+      message,
+      status,
+    });
+    await delay(1000);
+  }
+
+  if (isVerificationRunning) {
+    sendResponse({ status: "Bulk messaging complete", results });
+    chrome.runtime.sendMessage({ type: "OPERATION_COMPLETE" });
+  } else {
+    sendResponse({ status: "Bulk messaging stopped by user", results });
     chrome.runtime.sendMessage({ type: "OPERATION_STOPPED" });
   }
 }
