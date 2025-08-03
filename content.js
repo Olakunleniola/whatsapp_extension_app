@@ -381,17 +381,35 @@ async function clickWhatsAppChatItem(resultElement, expectedPhone) {
   }
 }
 
-// Add this function to process string literals
-function processMessageLiterals(message) {
-  if (!message || typeof message !== "string") return message;
+async function insertMultilineMessage(inputBox, message) {
+  inputBox.focus();
 
-  return message
-    .replace(/\\n/g, "\n") // Convert \n to actual newlines
-    .replace(/\\t/g, "\t") // Convert \t to actual tabs
-    .replace(/\\r/g, "\r") // Convert \r to carriage returns
-    .replace(/\\\\/g, "\\") // Convert \\ to single backslash
-    .replace(/\\"/g, '"') // Convert \" to quotes
-    .replace(/\\'/g, "'"); // Convert \' to single quotes
+  // If Python is using CRLF, normalize to \n
+  const lines = message.replace(/\r\n/g, "\n").split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    // Insert just the text for this line
+    document.execCommand("insertText", false, lines[i]);
+
+    // Between lines, simulate Shift+Enter to break
+    if (i < lines.length - 1) {
+      inputBox.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          code: "Enter",
+          keyCode: 13,
+          which: 13,
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+      await delay(80);
+    }
+  }
+
+  // Notify WhatsApp’s React/Lexical that input happened
+  inputBox.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -684,27 +702,19 @@ async function sendBulkMessages(data, sendResponse) {
         continue;
       }
 
-      const processedMessage = processMessageLiterals(message);
       // Step 6: Enter the message (Lexical editor approach)
       console.log("Step 6: Entering message...");
-      inputBox.focus();
-      await delay(300);
 
       // Clear existing content by targeting the paragraph inside
       const paragraph = inputBox.querySelector("p");
       if (paragraph) {
         paragraph.innerHTML = "<br>";
       }
-      console.log(processedMessage);
-      // Replace \n with Shift+Enter simulation
-      const messageWithBreaks = processedMessage.replace(/\n/g, "\uE000"); // Temporary placeholder
+      inputBox.focus();
+      await delay(300);
 
-      // Insert text first
-      document.execCommand("insertText", false, messageWithBreaks);
-
-      // // Trigger input events
-      // document.execCommand("selectAll", false, null);
-      // inputBox.dispatchEvent(new Event("input", { bubbles: true }));
+      console.log(message);
+      await insertMultilineMessage(inputBox, message);
 
       // Method 3: Dispatch input events for Lexical
       inputBox.dispatchEvent(new Event("beforeinput", { bubbles: true }));
@@ -722,13 +732,6 @@ async function sendBulkMessages(data, sendResponse) {
       const sendSelectors = [
         'button[aria-label="Send"]',
         'button[data-testid="compose-btn-send"]',
-        'span[data-testid="send"]',
-        'span[data-icon="send"]',
-        'button[title="Send"]',
-        // Look for send icon
-        'svg[data-icon="send"]',
-        // Parent of send icon
-        'button:has(span[data-testid="send"])',
       ];
 
       let sendBtn = null;
