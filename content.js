@@ -384,8 +384,14 @@ async function clickWhatsAppChatItem(resultElement, expectedPhone) {
 async function insertMultilineMessage(inputBox, message) {
   inputBox.focus();
 
-  // If Python is using CRLF, normalize to \n
-  const lines = message.replace(/\r\n/g, "\n").split("\n");
+  // Normalize CRLF and fix excessive newlines
+  const cleaned = message
+    .replace(/\r\n/g, "\n") // Normalize CRLF to LF
+    .replace(/\n{4,}/g, "<<DOUBLE>>") // Mark 4 or more newlines
+    .replace(/\n{2,}/g, "\n") // Replace double newlines with single
+    .replace(/<<DOUBLE>>/g, "\n\n"); // Restore double newlines
+
+  const lines = cleaned.split("\n");
 
   for (let i = 0; i < lines.length; i++) {
     // Insert just the text for this line
@@ -407,9 +413,6 @@ async function insertMultilineMessage(inputBox, message) {
       await delay(80);
     }
   }
-
-  // Notify WhatsApp’s React/Lexical that input happened
-  inputBox.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -496,7 +499,7 @@ async function verifyNumbers(data, sendResponse) {
     if (
       !phone ||
       typeof phone !== "string" ||
-      !/^\+234\d{7,}$/.test(phone.trim())
+      !/^\+?234\d{7,}$/.test(phone.trim())
     ) {
       status = "❌ Invalid format";
       results.push({ phone, status });
@@ -587,6 +590,19 @@ async function sendBulkMessages(data, sendResponse) {
       continue;
     }
 
+    // Validate phone number format
+    if (
+      !phone ||
+      typeof phone !== "string" ||
+      !/^\+?234\d{7,}$/.test(phone.trim())
+    ) {
+      status = "❌ Invalid format";
+      results.push({ phone, status });
+      chrome.runtime.sendMessage({ type: "STATUS_UPDATE", phone, status });
+      await delay(500);
+      continue;
+    }
+
     try {
       // Step 1: Click new chat button
       console.log("Step 1: Opening new chat...");
@@ -637,7 +653,6 @@ async function sendBulkMessages(data, sendResponse) {
       // Step 4: Click on the found result to open chat
       console.log("Step 4: Opening chat...");
       await delay(500);
-      console.log(resultElement);
 
       // Find the clickable parent element
       let clickableElement = resultElement;
@@ -653,8 +668,6 @@ async function sendBulkMessages(data, sendResponse) {
         clickableElement = clickableParent;
       }
 
-      console.log(clickableParent);
-
       // Scroll into view and click
       clickableElement.scrollIntoView({ behavior: "smooth", block: "center" });
       await delay(500);
@@ -663,7 +676,8 @@ async function sendBulkMessages(data, sendResponse) {
 
       const chatOpened = await clickWhatsAppChatItem(resultElement, phone);
       // clickableElement.click();
-      console.log("✅ Chat clicked, waiting for chat to load...");
+      if (chatOpened)
+        console.log("✅ Chat clicked, waiting for chat to load...");
 
       // Wait longer for chat to load completely
       await delay(3000, 500);
@@ -713,19 +727,16 @@ async function sendBulkMessages(data, sendResponse) {
       inputBox.focus();
       await delay(300);
 
-      console.log(message);
       await insertMultilineMessage(inputBox, message);
 
       // Method 3: Dispatch input events for Lexical
       inputBox.dispatchEvent(new Event("beforeinput", { bubbles: true }));
       inputBox.dispatchEvent(new Event("input", { bubbles: true }));
       inputBox.dispatchEvent(new Event("textInput", { bubbles: true }));
-
       console.log(
         "✅ Message entered with line breaks, waiting before sending..."
       );
       await delay(3000, 200);
-
       // Step 7: Find and click send button
       console.log("Step 7: Finding send button...");
 
