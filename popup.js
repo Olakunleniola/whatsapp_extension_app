@@ -82,121 +82,230 @@ function generateExcelFiles() {
     return baseRow;
   });
 
-  // Separate verified and unverified numbers (with all original columns)
-  const verifiedRows = dataWithStatus.filter(
-    (row) => row.Status === "✅ Found on WhatsApp" || row.Status === "✅ Sent"
-  );
-  const unverifiedRows = dataWithStatus.filter(
-    (row) => row.Status !== "✅ Found on WhatsApp" && row.Status !== "✅ Sent"
-  );
+  // Determine operation type and set appropriate naming
+  const isBulkOperation = operationSelect.value === "bulk";
 
-  // Create workbook for verified numbers
-  if (verifiedRows.length > 0) {
-    try {
-      const verifiedWorkbook = XLSX.utils.book_new();
-      const verifiedWorksheet = XLSX.utils.json_to_sheet(verifiedRows);
-      XLSX.utils.book_append_sheet(
-        verifiedWorkbook,
-        verifiedWorksheet,
-        "Verified Numbers"
-      );
+  if (isBulkOperation) {
+    // For bulk messaging: separate sent and failed messages
+    const sentRows = dataWithStatus.filter(
+      (row) => row.Status === "✅ Sent" || row.Status === "✅ Sent (Enter key)"
+    );
+    const failedRows = dataWithStatus.filter(
+      (row) => row.Status !== "✅ Sent" && row.Status !== "✅ Sent (Enter key)"
+    );
 
-      // Generate verified numbers file using base64
-      const verifiedBase64 = XLSX.write(verifiedWorkbook, {
-        bookType: "xlsx",
-        type: "base64",
-      });
+    // Create workbook for sent messages
+    if (sentRows.length > 0) {
+      try {
+        const sentWorkbook = XLSX.utils.book_new();
+        const sentWorksheet = XLSX.utils.json_to_sheet(sentRows);
+        XLSX.utils.book_append_sheet(
+          sentWorkbook,
+          sentWorksheet,
+          "Sent Messages"
+        );
 
-      // Convert base64 to blob
-      const verifiedBlob = new Blob(
-        [Uint8Array.from(atob(verifiedBase64), (c) => c.charCodeAt(0))],
-        {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }
-      );
-      const verifiedUrl = URL.createObjectURL(verifiedBlob);
+        const sentBase64 = XLSX.write(sentWorkbook, {
+          bookType: "xlsx",
+          type: "base64",
+        });
 
-      // Create download link for verified numbers
-      const verifiedLink = document.createElement("a");
-      verifiedLink.href = verifiedUrl;
-      verifiedLink.download = `verified_numbers_${new Date()
-        .toISOString()
-        .slice(0, 10)}.xlsx`;
-      verifiedLink.textContent = `📥 Download Verified Numbers (${verifiedRows.length})`;
-      verifiedLink.style.cssText = `
-        display: block;
-        margin: 10px 0;
-        padding: 10px;
-        background: #10b981;
-        color: white;
-        text-decoration: none;
-        border-radius: 6px;
-        text-align: center;
-        font-weight: 500;
-      `;
-      statusLog.appendChild(verifiedLink);
-      console.log("Verified link created");
-    } catch (error) {
-      console.error("Error creating verified file:", error);
-      logStatus("❌ Error creating verified numbers file");
+        const sentBlob = new Blob(
+          [Uint8Array.from(atob(sentBase64), (c) => c.charCodeAt(0))],
+          {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }
+        );
+        const sentUrl = URL.createObjectURL(sentBlob);
+
+        const sentLink = document.createElement("a");
+        sentLink.href = sentUrl;
+        sentLink.download = `sent_messages_${new Date()
+          .toISOString()
+          .slice(0, 10)}.xlsx`;
+        sentLink.textContent = `📥 Download Sent Messages (${sentRows.length})`;
+        sentLink.style.cssText = `
+          display: block;
+          margin: 10px 0;
+          padding: 10px;
+          background: #10b981;
+          color: white;
+          text-decoration: none;
+          border-radius: 6px;
+          text-align: center;
+          font-weight: 500;
+        `;
+        statusLog.appendChild(sentLink);
+        console.log("Sent messages link created");
+      } catch (error) {
+        console.error("Error creating sent messages file:", error);
+        logStatus("❌ Error creating sent messages file");
+      }
     }
-  }
 
-  // Create workbook for unverified numbers
-  if (unverifiedRows.length > 0) {
-    try {
-      const unverifiedWorkbook = XLSX.utils.book_new();
-      const unverifiedWorksheet = XLSX.utils.json_to_sheet(unverifiedRows);
-      XLSX.utils.book_append_sheet(
-        unverifiedWorkbook,
-        unverifiedWorksheet,
-        "Unverified Numbers"
-      );
+    // Create workbook for failed messages
+    if (failedRows.length > 0) {
+      try {
+        const failedWorkbook = XLSX.utils.book_new();
+        const failedWorksheet = XLSX.utils.json_to_sheet(failedRows);
+        XLSX.utils.book_append_sheet(
+          failedWorkbook,
+          failedWorksheet,
+          "Failed Messages"
+        );
 
-      // Generate unverified numbers file using base64
-      const unverifiedBase64 = XLSX.write(unverifiedWorkbook, {
-        bookType: "xlsx",
-        type: "base64",
-      });
+        const failedBase64 = XLSX.write(failedWorkbook, {
+          bookType: "xlsx",
+          type: "base64",
+        });
 
-      // Convert base64 to blob
-      const unverifiedBlob = new Blob(
-        [Uint8Array.from(atob(unverifiedBase64), (c) => c.charCodeAt(0))],
-        {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }
-      );
-      const unverifiedUrl = URL.createObjectURL(unverifiedBlob);
+        const failedBlob = new Blob(
+          [Uint8Array.from(atob(failedBase64), (c) => c.charCodeAt(0))],
+          {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }
+        );
+        const failedUrl = URL.createObjectURL(failedBlob);
 
-      // Create download link for unverified numbers
-      const unverifiedLink = document.createElement("a");
-      unverifiedLink.href = unverifiedUrl;
-      unverifiedLink.download = `unverified_numbers_${new Date()
-        .toISOString()
-        .slice(0, 10)}.xlsx`;
-      unverifiedLink.textContent = `📥 Download Unverified Numbers (${unverifiedRows.length})`;
-      unverifiedLink.style.cssText = `
-        display: block;
-        margin: 10px 0;
-        padding: 10px;
-        background: #ef4444;
-        color: white;
-        text-decoration: none;
-        border-radius: 6px;
-        text-align: center;
-        font-weight: 500;
-      `;
-      statusLog.appendChild(unverifiedLink);
-      console.log("Unverified link created");
-    } catch (error) {
-      console.error("Error creating unverified file:", error);
-      logStatus("❌ Error creating unverified numbers file");
+        const failedLink = document.createElement("a");
+        failedLink.href = failedUrl;
+        failedLink.download = `failed_messages_${new Date()
+          .toISOString()
+          .slice(0, 10)}.xlsx`;
+        failedLink.textContent = `📥 Download Failed Messages (${failedRows.length})`;
+        failedLink.style.cssText = `
+          display: block;
+          margin: 10px 0;
+          padding: 10px;
+          background: #ef4444;
+          color: white;
+          text-decoration: none;
+          border-radius: 6px;
+          text-align: center;
+          font-weight: 500;
+        `;
+        statusLog.appendChild(failedLink);
+        console.log("Failed messages link created");
+      } catch (error) {
+        console.error("Error creating failed messages file:", error);
+        logStatus("❌ Error creating failed messages file");
+      }
     }
-  }
 
-  logStatus(
-    `✅ Generated ${verifiedRows.length} verified and ${unverifiedRows.length} unverified results.`
-  );
+    logStatus(
+      `✅ Generated ${sentRows.length} sent and ${failedRows.length} failed message results.`
+    );
+  } else {
+    // For verification: separate verified and unverified numbers
+    const verifiedRows = dataWithStatus.filter(
+      (row) => row.Status === "✅ Found on WhatsApp"
+    );
+    const unverifiedRows = dataWithStatus.filter(
+      (row) => row.Status !== "✅ Found on WhatsApp"
+    );
+
+    // Create workbook for verified numbers
+    if (verifiedRows.length > 0) {
+      try {
+        const verifiedWorkbook = XLSX.utils.book_new();
+        const verifiedWorksheet = XLSX.utils.json_to_sheet(verifiedRows);
+        XLSX.utils.book_append_sheet(
+          verifiedWorkbook,
+          verifiedWorksheet,
+          "Verified Numbers"
+        );
+
+        const verifiedBase64 = XLSX.write(verifiedWorkbook, {
+          bookType: "xlsx",
+          type: "base64",
+        });
+
+        const verifiedBlob = new Blob(
+          [Uint8Array.from(atob(verifiedBase64), (c) => c.charCodeAt(0))],
+          {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }
+        );
+        const verifiedUrl = URL.createObjectURL(verifiedBlob);
+
+        const verifiedLink = document.createElement("a");
+        verifiedLink.href = verifiedUrl;
+        verifiedLink.download = `verified_numbers_${new Date()
+          .toISOString()
+          .slice(0, 10)}.xlsx`;
+        verifiedLink.textContent = `📥 Download Verified Numbers (${verifiedRows.length})`;
+        verifiedLink.style.cssText = `
+          display: block;
+          margin: 10px 0;
+          padding: 10px;
+          background: #10b981;
+          color: white;
+          text-decoration: none;
+          border-radius: 6px;
+          text-align: center;
+          font-weight: 500;
+        `;
+        statusLog.appendChild(verifiedLink);
+        console.log("Verified link created");
+      } catch (error) {
+        console.error("Error creating verified file:", error);
+        logStatus("❌ Error creating verified numbers file");
+      }
+    }
+
+    // Create workbook for unverified numbers
+    if (unverifiedRows.length > 0) {
+      try {
+        const unverifiedWorkbook = XLSX.utils.book_new();
+        const unverifiedWorksheet = XLSX.utils.json_to_sheet(unverifiedRows);
+        XLSX.utils.book_append_sheet(
+          unverifiedWorkbook,
+          unverifiedWorksheet,
+          "Unverified Numbers"
+        );
+
+        const unverifiedBase64 = XLSX.write(unverifiedWorkbook, {
+          bookType: "xlsx",
+          type: "base64",
+        });
+
+        const unverifiedBlob = new Blob(
+          [Uint8Array.from(atob(unverifiedBase64), (c) => c.charCodeAt(0))],
+          {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }
+        );
+        const unverifiedUrl = URL.createObjectURL(unverifiedBlob);
+
+        const unverifiedLink = document.createElement("a");
+        unverifiedLink.href = unverifiedUrl;
+        unverifiedLink.download = `unverified_numbers_${new Date()
+          .toISOString()
+          .slice(0, 10)}.xlsx`;
+        unverifiedLink.textContent = `📥 Download Unverified Numbers (${unverifiedRows.length})`;
+        unverifiedLink.style.cssText = `
+          display: block;
+          margin: 10px 0;
+          padding: 10px;
+          background: #ef4444;
+          color: white;
+          text-decoration: none;
+          border-radius: 6px;
+          text-align: center;
+          font-weight: 500;
+        `;
+        statusLog.appendChild(unverifiedLink);
+        console.log("Unverified link created");
+      } catch (error) {
+        console.error("Error creating unverified file:", error);
+        logStatus("❌ Error creating unverified numbers file");
+      }
+    }
+
+    logStatus(
+      `✅ Generated ${verifiedRows.length} verified and ${unverifiedRows.length} unverified results.`
+    );
+  }
 }
 
 const updateHeaderDropdownVisibility = () => {

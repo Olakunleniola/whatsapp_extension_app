@@ -381,16 +381,23 @@ async function clickWhatsAppChatItem(resultElement, expectedPhone) {
   }
 }
 
+function normalizeMessage(msg, rm = false) {
+  // Normalize CRLF and fix excessive newlines
+  let message = msg.replace(/\r\n/g, "\n"); // Normalize CRLF to LF
+  if (rm) {
+    console.log(true);
+    message = message
+      .replace(/\n{4,}/g, "<<DOUBLE>>") // Mark 4 or more newlines
+      .replace(/\n{2,}/g, "\n") // Replace double newlines with single
+      .replace(/<<DOUBLE>>/g, "\n\n"); // Restore double newlines
+  }
+  return message;
+}
+
 async function insertMultilineMessage(inputBox, message) {
   inputBox.focus();
-
-  // Normalize CRLF and fix excessive newlines
-  const cleaned = message
-    .replace(/\r\n/g, "\n") // Normalize CRLF to LF
-    .replace(/\n{4,}/g, "<<DOUBLE>>") // Mark 4 or more newlines
-    .replace(/\n{2,}/g, "\n") // Replace double newlines with single
-    .replace(/<<DOUBLE>>/g, "\n\n"); // Restore double newlines
-
+  console.log(JSON.stringify(message));
+  cleaned = normalizeMessage(message, true);
   const lines = cleaned.split("\n");
 
   for (let i = 0; i < lines.length; i++) {
