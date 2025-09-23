@@ -1,6 +1,7 @@
 // DOM elements
 const fileInput = document.getElementById("fileInput");
 const startBtn = document.getElementById("startBtn");
+const stopBtn = document.getElementById("stopBtn");
 const statusLog = document.getElementById("statusLog");
 const operationSelect = document.getElementById("operation");
 const headerSelectSection = document.getElementById("headerSelectSection");
@@ -44,7 +45,8 @@ function resetUI() {
   statusLog.innerHTML = "";
 
   // Reset button text
-  startBtn.textContent = "🚀 Start Operation";
+  startBtn.textContent = "🚀 Start";
+  startBtn.style.background = "#0ea50e";
   isOperationRunning = false;
 }
 
@@ -389,34 +391,44 @@ messageHeaderSelect.addEventListener("change", (e) => {
 });
 
 startBtn.addEventListener("click", (e) => {
+  stopBtn.textContent = "❌ Stop";
+  stopBtn.style.background = "#e43e3e";
   if (isOperationRunning) {
     // Stop operation
     isOperationRunning = false;
-    startBtn.textContent = "🔄 Reset Operation";
+    startBtn.textContent = "🔄 Resume";
     e.target.style.backgroundColor = "#3535c5";
-    logStatus("⏹️ Operation stopped by user.");
+    logStatus("⏹️ Operation paused by user.");
 
     // Send stop message to content script
     chrome.tabs.query(
       { url: "*://web.whatsapp.com/*", active: true, currentWindow: true },
       (tabs) => {
         if (tabs.length) {
-          chrome.tabs.sendMessage(tabs[0].id, { type: "STOP_OPERATION" });
+          chrome.tabs.sendMessage(tabs[0].id, { type: "PAUSE_OPERATION" });
         }
       }
     );
     return;
   }
 
-  if (startBtn.textContent === "🔄 Reset Operation") {
+  if (startBtn.textContent === "🔄 Resume") {
     // Reset operation
-    e.target.style.backgroundColor = "#0ea50e";
-    resetUI();
+    e.target.style.backgroundColor = "#3535c5";
+    startBtn.textContent = "⏸️ Pause";
+    // Send resume message to content script
+    chrome.tabs.query(
+      { url: "*://web.whatsapp.com/*", active: true, currentWindow: true },
+      (tabs) => {
+        if (tabs.length) {
+          chrome.tabs.sendMessage(tabs[0].id, { type: "START_OPERATION" });
+        }
+      }
+    );
     return;
   }
 
   // Start operation
-  e.target.style.backgroundColor = "#e43e3e";
   if (!parsedData.length) {
     logStatus("❌ Please upload a file first.");
     return;
@@ -435,7 +447,8 @@ startBtn.addEventListener("click", (e) => {
 
   // Change button to stop mode
   isOperationRunning = true;
-  startBtn.textContent = "❌ Stop Operation";
+  startBtn.textContent = "⏸️ Pause";
+  e.target.style.backgroundColor = "#3535c5";
 
   logStatus(
     `🚀 Starting: ${
@@ -460,7 +473,8 @@ startBtn.addEventListener("click", (e) => {
       if (!tabs.length) {
         logStatus("❌ WhatsApp Web tab not found or not active.");
         isOperationRunning = false;
-        startBtn.textContent = "🚀 Start Operation";
+        startBtn.textContent = "🚀 Start";
+        startBtn.style.background = "#0ea50e";
         return;
       }
       chrome.tabs.sendMessage(
@@ -470,7 +484,8 @@ startBtn.addEventListener("click", (e) => {
           if (chrome.runtime.lastError) {
             logStatus("❌ Could not communicate with WhatsApp Web.");
             isOperationRunning = false;
-            startBtn.textContent = "🚀 Start Operation";
+            startBtn.textContent = "🚀 Start";
+            tartBtn.style.background = "#0ea50e";
           } else if (response && response.status) {
             logStatus(`ℹ️ ${response.status}`);
           }
@@ -480,9 +495,31 @@ startBtn.addEventListener("click", (e) => {
   );
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log("Received message:", message);
+stopBtn.addEventListener("click", (e) => {
+  if (stopBtn.textContent === "❌ Stop") {
+    stopBtn.textContent = "🔀 Reset";
+    stopBtn.style.background = "#3535c5";
+    if (isOperationRunning && headers.length > 0) {
+      isOperationRunning = false;
+      chrome.tabs.query(
+        { url: "*://web.whatsapp.com/*", active: true, currentWindow: true },
+        (tabs) => {
+          if (tabs.length) {
+            chrome.tabs.sendMessage(tabs[0].id, { type: "STOP_OPERATION" });
+          }
+          return;
+        }
+      );
+    }
+    return;
+  }
+  stopBtn.textContent = "❌ Stop";
+  stopBtn.style.background = "#e43e3e";
+  resetUI();
+  return;
+});
 
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "STATUS_UPDATE") {
     logStatus(`${message.phone}: ${message.status}`);
     // Store result for Excel generation
@@ -503,7 +540,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "OPERATION_COMPLETE") {
     console.log("Operation complete, results:", operationResults);
     isOperationRunning = false;
-    startBtn.textContent = "🔄 Reset Operation";
+    startBtn.textContent = "🚀 Start";
+    stopBtn.textContent = "🔄 Reset ";
+    stopBtn.style.background = "#3535c5";
+    startBtn.style.background = "#0ea50e";
     logStatus("✅ Operation completed! Generating Excel files...");
     generateExcelFiles();
   }
@@ -511,9 +551,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "OPERATION_STOPPED") {
     console.log("Operation stopped, results:", operationResults);
     isOperationRunning = false;
-    startBtn.textContent = "🔄 Reset Operation";
+    startBtn.style.background = "#0ea50e";
+    startBtn.textContent = "🚀 Start";
     logStatus(
-      "⏹️ Operation stopped. Generating Excel files for completed results..."
+      "❌ Operation stopped by user. Generating Excel files for completed results..."
     );
     generateExcelFiles();
   }

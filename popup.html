@@ -101,16 +101,32 @@
         margin: 15px 0;
       }
 
-      .waris-content button {
-        background-color: #0ea50e;
+      .waris-content .button-container button {
         color: white;
         font-weight: 600;
         transition: all ease-in-out 0.2s;
         border: none;
       }
 
-      .waris-content button:hover {
+      .waris-content .button-container {
+        display: flex;
+        gap: 4px;
+      }
+
+      .waris-content #startBtn {
+        background-color: #0ea50e;
+      }
+
+      .waris-content #stopBtn {
+        background-color: #e43e3e;
+      }
+
+      .waris-content #startBtn:hover {
         background-color: #0a750a;
+        transform: translateY(-1px);
+      }
+      .waris-content #stopBtn:hover {
+        background-color: #992a2a;
         transform: translateY(-1px);
       }
 
@@ -246,7 +262,10 @@
       </div>
 
       <!-- Start Button -->
-      <button id="startBtn">🚀 Start Operation</button>
+      <div class="button-container">
+        <button id="startBtn">🚀 Start</button>
+        <button id="stopBtn">❌ Stop</button>
+      </div>
 
       <!-- Status Log -->
       <div class="statusContainer">
